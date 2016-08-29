@@ -79,6 +79,7 @@ bool tile = false;
 bool ignore_empty_password = false;
 bool skip_repeated_empty_password = false;
 
+struct tm *lock_time;
 /* isutf, u8_dec © 2005 Jeff Bezanson, public domain */
 #define isutf(c) (((c)&0xC0) != 0x80)
 
@@ -859,6 +860,14 @@ int main(int argc, char *argv[]) {
     /* We need (relatively) random numbers for highlighting a random part of
      * the unlock indicator upon keypresses. */
     srand(time(NULL));
+
+    /* We need to save the current time in order to display the time when
+     * the computer was locked. Since this could lead to our PRNG seed being
+     * visible to the user, we should make sure that we're not using rand()
+     * for anything important (spoiler: we aren't). */
+    time_t curtime = time(NULL);
+    lock_time = malloc(sizeof(struct tm));
+    localtime_r(&curtime, lock_time);
 
     /* Initialize PAM */
     if ((ret = pam_start("i3lock", username, &conv, &pam_handle)) != PAM_SUCCESS)
