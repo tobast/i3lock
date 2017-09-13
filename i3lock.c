@@ -90,7 +90,6 @@ bool tile = false;
 bool ignore_empty_password = false;
 bool skip_repeated_empty_password = false;
 
-time_t lock_time;
 /* isutf, u8_dec © 2005 Jeff Bezanson, public domain */
 #define isutf(c) (((c)&0xC0) != 0x80)
 
@@ -912,12 +911,6 @@ int main(int argc, char *argv[]) {
     /* We need (relatively) random numbers for highlighting a random part of
      * the unlock indicator upon keypresses. */
     srand(time(NULL));
-
-    /* We need to save the current time in order to display the time when
-     * the computer was locked. Since this could lead to our PRNG seed being
-     * visible to the user, we should make sure that we're not using rand()
-     * for anything important (spoiler: we aren't). */
-    lock_time = time(NULL);
 
 #ifndef __OpenBSD__
     /* Initialize PAM */

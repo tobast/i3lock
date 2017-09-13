@@ -67,9 +67,6 @@ extern bool show_failed_attempts;
 /* Number of failed unlock attempts. */
 extern int failed_attempts;
 
-/* When was the computer locked. */
-extern time_t lock_time;
-
 /* tick for timer */
 static struct ev_periodic *time_redraw_tick;
 
@@ -171,8 +168,8 @@ xcb_pixmap_t draw_image(uint32_t *resolution) {
 
         char *text = buf;
 
-        time_t curtime = time(NULL);
-        time_t locked_time = difftime(curtime, lock_time) / 60;
+        time_t curtime_t = time(NULL);
+        const struct tm* curtime = localtime(&curtime_t);
 
         /* Use the appropriate color for the different PAM states
          * (currently verifying, wrong password, or default) */
@@ -205,13 +202,13 @@ xcb_pixmap_t draw_image(uint32_t *resolution) {
                 cairo_set_source_rgb(ctx, 160.0 / 255, 160.0 / 255, 160.0 / 255);
                 break;
         }
-        if (locked_time >= 60)
-            cairo_set_source_rgb(ctx, 125.0 / 255, 51.0 / 255, 0);
 
         cairo_stroke(ctx);
 
         /* set time display */
-        snprintf(text, INFO_MAXLENGTH - 1, "%.2lu:%.2lu", locked_time / 60, locked_time % 60);
+        snprintf(text, INFO_MAXLENGTH - 1, "%.2d:%.2d",
+                curtime->tm_hour,
+                curtime->tm_min);
 
         cairo_set_source_rgb(ctx, 255, 255, 255);
         cairo_set_font_size(ctx, 32.0);
