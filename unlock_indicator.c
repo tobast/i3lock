@@ -90,7 +90,7 @@ static xcb_visualtype_t *vistype;
 /* Maintain the current unlock/PAM state to draw the appropriate unlock
  * indicator. */
 unlock_state_t unlock_state;
-pam_state_t pam_state;
+auth_state_t auth_state;
 
 /*
  * Returns the scaling factor of the current screen. E.g., on a 227 DPI MacBook
@@ -159,7 +159,7 @@ xcb_pixmap_t draw_image(uint32_t *resolution) {
     }
 
     if (unlock_indicator &&
-        (unlock_state >= STATE_KEY_PRESSED || pam_state > STATE_PAM_IDLE)) {
+        (unlock_state >= STATE_KEY_PRESSED || auth_state > STATE_AUTH_IDLE)) {
         cairo_scale(ctx, scaling_factor(), scaling_factor());
         /* Draw a (centered) circle with transparent background. */
         cairo_set_line_width(ctx, 10.0);
@@ -182,11 +182,13 @@ xcb_pixmap_t draw_image(uint32_t *resolution) {
 
         /* Use the appropriate color for the different PAM states
          * (currently verifying, wrong password, or default) */
-        switch (pam_state) {
-            case STATE_PAM_VERIFY:
+        switch (auth_state) {
+            case STATE_AUTH_VERIFY:
+            case STATE_AUTH_LOCK:
                 cairo_set_source_rgba(ctx, 0, 114.0 / 255, 255.0 / 255, 0.75);
                 break;
-            case STATE_PAM_WRONG:
+            case STATE_AUTH_WRONG:
+            case STATE_I3LOCK_LOCK_FAILED:
                 cairo_set_source_rgba(ctx, 250.0 / 255, 0, 0, 0.75);
                 break;
             default:
@@ -198,14 +200,16 @@ xcb_pixmap_t draw_image(uint32_t *resolution) {
 
         cairo_fill_preserve(ctx);
 
-        switch (pam_state) {
-            case STATE_PAM_VERIFY:
+        switch (auth_state) {
+            case STATE_AUTH_VERIFY:
+            case STATE_AUTH_LOCK:
                 cairo_set_source_rgb(ctx, 51.0 / 255, 0, 250.0 / 255);
                 break;
-            case STATE_PAM_WRONG:
+            case STATE_AUTH_WRONG:
+            case STATE_I3LOCK_LOCK_FAILED:
                 cairo_set_source_rgb(ctx, 125.0 / 255, 51.0 / 255, 0);
                 break;
-            case STATE_PAM_IDLE:
+            case STATE_AUTH_IDLE:
                 cairo_set_source_rgb(ctx, 160.0 / 255, 160.0 / 255, 160.0 / 255);
                 break;
         }
@@ -326,8 +330,8 @@ xcb_pixmap_t draw_image(uint32_t *resolution) {
                       BUTTON_CENTER /* x */,
                       BUTTON_CENTER /* y */,
                       BUTTON_RADIUS /* radius */,
-                      highlight_start + (M_PI / 3.0) /* start */,
-                      (highlight_start + (M_PI / 3.0)) + (M_PI / 128.0) /* end */);
+                      (highlight_start + (M_PI / 3.0)) - (M_PI / 128.0) /* start */,
+                      highlight_start + (M_PI / 3.0) /* end */);
             cairo_stroke(ctx);
         }
     }
@@ -364,7 +368,7 @@ xcb_pixmap_t draw_image(uint32_t *resolution) {
  *
  */
 void redraw_screen(void) {
-    DEBUG("redraw_screen(unlock_state = %d, pam_state = %d)\n", unlock_state, pam_state);
+    DEBUG("redraw_screen(unlock_state = %d, auth_state = %d)\n", unlock_state, auth_state);
     xcb_pixmap_t bg_pixmap = draw_image(last_resolution);
     xcb_change_window_attributes(conn, win, XCB_CW_BACK_PIXMAP, (uint32_t[1]){bg_pixmap});
     /* XXX: Possible optimization: Only update the area in the middle of the
