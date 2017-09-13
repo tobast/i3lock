@@ -103,12 +103,6 @@ static double scaling_factor(void) {
     return (dpi / 96.0);
 }
 
-static char *get_login(void) {
-    uid_t uid = getuid();
-    struct passwd *pwd = getpwuid(uid);
-    return pwd ? pwd->pw_name : NULL;
-}
-
 /*
  * Draws global image with fill color onto a pixmap with the given
  * resolution and returns it.
@@ -195,8 +189,6 @@ xcb_pixmap_t draw_image(uint32_t *resolution) {
                 cairo_set_source_rgba(ctx, 0, 0, 0, 0.75);
                 break;
         }
-        if (locked_time >= 60) // more that 1h
-            cairo_set_source_rgba(ctx, 250.0 / 255, 0, 0, 0.75);
 
         cairo_fill_preserve(ctx);
 
@@ -235,52 +227,28 @@ xcb_pixmap_t draw_image(uint32_t *resolution) {
         cairo_close_path(ctx);
 
         /* Failed attempts (below) */
-        if (failed_attempts == 0) {
-            text = get_login();
-        } else if (failed_attempts == 1) {
-            text = "1 failed attempt";
-        } else {
-            snprintf(text, INFO_MAXLENGTH - 1, "%i failed attempts", failed_attempts);
-        }
+        if(show_failed_attempts && failed_attempts > 0) {
+            if (failed_attempts == 1) {
+                text = "1 failed attempt";
+            } else {
+                snprintf(text, INFO_MAXLENGTH - 1, "%i failed attempts", failed_attempts);
+            }
 
-        cairo_set_font_size(ctx, 14.0);
+            cairo_set_font_size(ctx, 14.0);
 
-        double x, y;
-        cairo_text_extents_t extents;
-        cairo_text_extents(ctx, text, &extents);
-        x = BUTTON_CENTER - ((extents.width / 2) + extents.x_bearing);
-        y = time_y - extents.y_bearing + INFO_MARGIN;
-
-        cairo_move_to(ctx, x, y);
-        cairo_show_text(ctx, text);
-        cairo_close_path(ctx);
-
-        if (failed_attempts >= 1)
-        {
-            text = get_login();
-
+            double x, y;
+            cairo_text_extents_t extents;
             cairo_text_extents(ctx, text, &extents);
             x = BUTTON_CENTER - ((extents.width / 2) + extents.x_bearing);
-            y = time_y - time_extents.y_bearing + INFO_MARGIN * 2;
+            y = time_y - extents.y_bearing + INFO_MARGIN;
 
             cairo_move_to(ctx, x, y);
             cairo_show_text(ctx, text);
             cairo_close_path(ctx);
         }
 
-        /* Lock time (above) */
-        text = "Locked for";
-
-        cairo_text_extents(ctx, text, &extents);
-        x = BUTTON_CENTER - ((extents.width / 2) + extents.x_bearing);
-        y = time_y + time_extents.y_bearing - INFO_MARGIN;
-
-        cairo_move_to(ctx, x, y);
-        cairo_show_text(ctx, text);
-        cairo_close_path(ctx);
-        cairo_move_to(ctx, BUTTON_CENTER + BUTTON_RADIUS - 5, y - time_extents.y_bearing);
-
         /* Draw an inner seperator line. */
+        cairo_move_to(ctx, BUTTON_CENTER + BUTTON_RADIUS - 5, BUTTON_CENTER);
         cairo_set_source_rgb(ctx, 0, 0, 0);
         cairo_set_line_width(ctx, 2.0);
         cairo_arc(ctx,
